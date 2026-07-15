@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2023 HexHacking Team
+// Copyright (c) 2020-2025 HexHacking Team
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -86,7 +86,7 @@ static xdl_lzma_free_t xdl_lzma_free = NULL;
 static void *xdl_lzma_code = NULL;
 
 // LZMA init
-static void xdl_lzma_init() {
+static void xdl_lzma_init(void) {
   void *lzma = xdl_open(XDL_LZMA_PATHNAME, XDL_TRY_FORCE_LOAD);
   if (NULL == lzma) return;
 
@@ -118,41 +118,45 @@ static void xdl_lzma_internal_free(ISzAllocPtr p, void *address) {
 }
 
 int xdl_lzma_decompress(uint8_t *src, size_t src_size, uint8_t **dst, size_t *dst_size) {
-  size_t src_offset = 0;
-  size_t dst_offset = 0;
-  size_t src_remaining;
-  size_t dst_remaining;
-  ISzAlloc alloc = {.Alloc = xdl_lzma_internal_alloc, .Free = xdl_lzma_internal_free};
-  long long state[4096 / sizeof(long long)];  // must be enough, 8-bit aligned
-  ECoderStatus status;
-  int api_level = xdl_util_get_api_level();
+  *dst = NULL;
+  *dst_size = 0;
 
-  // init and check
+  // LZMA init (only once)
   static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
   static bool inited = false;
-  if (!inited) {
+  if (!__atomic_load_n(&inited, __ATOMIC_ACQUIRE)) {
     pthread_mutex_lock(&lock);
-    if (!inited) {
+    if (!__atomic_load_n(&inited, __ATOMIC_RELAXED)) {
       xdl_lzma_init();
-      inited = true;
+      __atomic_store_n(&inited, true, __ATOMIC_RELEASE);
     }
     pthread_mutex_unlock(&lock);
   }
   if (NULL == xdl_lzma_code) return -1;
 
+  // LZMA state init
+  long long state[4096 / sizeof(long long)];
+  ISzAlloc alloc = {.Alloc = xdl_lzma_internal_alloc, .Free = xdl_lzma_internal_free};
   xdl_lzma_construct(&state, &alloc);
 
-  *dst_size = 2 * src_size;
-  *dst = NULL;
+  // LZMA decompress
+  int api_level = xdl_util_get_api_level();
+  ECoderStatus status;
+  size_t src_offset = 0;
+  size_t dst_offset = 0;
+  *dst_size = 7 * src_size;
+  if (NULL == (*dst = malloc(*dst_size))) goto err;
   do {
-    *dst_size *= 2;
-    if (NULL == (*dst = realloc(*dst, *dst_size))) {
-      xdl_lzma_free(&state);
-      return -1;
+    size_t src_remaining = src_size - src_offset;
+    size_t dst_remaining = *dst_size - dst_offset;
+    if (dst_remaining < 2 * src_size) {
+      size_t new_dst_size = *dst_size + 2 * src_size;
+      uint8_t *new_dst = realloc(*dst, new_dst_size);
+      if (NULL == new_dst) goto err;
+      *dst = new_dst;
+      *dst_size = new_dst_size;
+      dst_remaining += (2 * src_size);
     }
-
-    src_remaining = src_size - src_offset;
-    dst_remaining = *dst_size - dst_offset;
 
     int result;
     if (api_level >= __ANDROID_API_Q__) {
@@ -164,24 +168,25 @@ int xdl_lzma_decompress(uint8_t *src, size_t src_size, uint8_t **dst, size_t *ds
       result = lzma_code(&state, *dst + dst_offset, &dst_remaining, src + src_offset, &src_remaining,
                          CODER_FINISH_ANY, &status);
     }
-    if (SZ_OK != result) {
-      free(*dst);
-      xdl_lzma_free(&state);
-      return -1;
-    }
+    if (SZ_OK != result) goto err;
 
     src_offset += src_remaining;
     dst_offset += dst_remaining;
   } while (status == CODER_STATUS_NOT_FINISHED);
+  if (!xdl_lzma_isfinished(&state)) goto err;
 
+  // OK
   xdl_lzma_free(&state);
-
-  if (!xdl_lzma_isfinished(&state)) {
-    free(*dst);
-    return -1;
-  }
-
   *dst_size = dst_offset;
   *dst = realloc(*dst, *dst_size);
   return 0;
+
+err:
+  xdl_lzma_free(&state);
+  if (NULL != *dst) {
+    free(*dst);
+    *dst = NULL;
+  }
+  *dst_size = 0;
+  return -1;
 }

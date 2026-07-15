@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>ZygiskFrida</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">MAGISK MODULE</p>
+        <h1>ZygiskFrida</h1>
+        <p class="subtitle">Configure Frida Gadget injection without editing JSON by hand.</p>
+      </div>
+      <a class="icon-link" href="https://github.com/lico-n/ZygiskFrida" aria-label="Open GitHub">↗</a>
+    </header>
+
+    <main>
+      <section class="panel toolbar" aria-label="Configuration actions">
+        <div>
+          <p class="label">Configuration file</p>
+          <code>/data/local/tmp/re.zyg.fri/config.json</code>
+        </div>
+        <div class="actions">
+          <button id="add-target" class="button secondary" type="button">Add target</button>
+          <button id="save-config" class="button primary" type="button">Save changes</button>
+        </div>
+      </section>
+
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <section id="targets" class="targets" aria-label="Injection targets"></section>
+
+      <section id="empty-state" class="panel empty" hidden>
+        <div class="empty-icon">＋</div>
+        <h2>No injection targets</h2>
+        <p>Add an installed application, then configure when and which libraries to inject.</p>
+        <button id="empty-add-target" class="button primary" type="button">Add first target</button>
+      </section>
+    </main>
+
+    <dialog id="package-dialog" class="package-dialog">
+      <form method="dialog" class="dialog-shell">
+        <header class="dialog-header">
+          <div>
+            <p class="eyebrow">INSTALLED APPS</p>
+            <h2>Choose a package</h2>
+          </div>
+          <button class="close-button" value="cancel" aria-label="Close">×</button>
+        </header>
+        <input id="package-search" class="search" type="search" placeholder="Search app name or package" autocomplete="off" />
+        <div id="package-list" class="package-list"></div>
+      </form>
+    </dialog>
+
+    <template id="target-template">
+      <article class="panel target-card">
+        <header class="target-header">
+          <div class="target-title-wrap">
+            <span class="target-index"></span>
+            <div>
+              <p class="label">TARGET PACKAGE</p>
+              <h2 class="target-title"></h2>
+            </div>
+          </div>
+          <div class="target-actions">
+            <label class="switch" title="Enable injection">
+              <input class="target-enabled" type="checkbox" />
+              <span></span>
+            </label>
+            <button class="icon-button remove-target" type="button" aria-label="Remove target">Delete</button>
+          </div>
+        </header>
+
+        <div class="field-grid">
+          <label class="field package-field">
+            <span>Package name</span>
+            <div class="input-action">
+              <input class="package-name" type="text" spellcheck="false" placeholder="com.example.app" />
+              <button class="button chooser-button" type="button">Choose app</button>
+            </div>
+          </label>
+          <label class="field delay-field">
+            <span>Startup delay</span>
+            <div class="input-suffix">
+              <input class="startup-delay" type="number" inputmode="numeric" min="0" step="1" />
+              <span>ms</span>
+            </div>
+          </label>
+        </div>
+
+        <section class="subsection">
+          <div class="section-heading">
+            <div>
+              <p class="label">MAIN PROCESS</p>
+              <h3>Injected libraries</h3>
+            </div>
+            <button class="text-button add-main-library" type="button">+ Add library</button>
+          </div>
+          <div class="library-list main-libraries"></div>
+        </section>
+
+        <section class="subsection child-section">
+          <div class="section-heading child-heading">
+            <div>
+              <p class="label">CHILD PROCESSES</p>
+              <h3>Child gating</h3>
+            </div>
+            <label class="switch">
+              <input class="child-enabled" type="checkbox" />
+              <span></span>
+            </label>
+          </div>
+          <div class="child-settings">
+            <label class="field compact-field">
+              <span>Mode</span>
+              <select class="child-mode">
+                <option value="freeze">Freeze</option>
+                <option value="kill">Kill</option>
+                <option value="inject">Inject</option>
+              </select>
+            </label>
+            <div class="section-heading library-heading">
+              <span class="field-label">Injected libraries</span>
+              <button class="text-button add-child-library" type="button">+ Add library</button>
+            </div>
+            <div class="library-list child-libraries"></div>
+          </div>
+        </section>
+      </article>
+    </template>
+
+    <template id="library-template">
+      <div class="library-row">
+        <input class="library-path" type="text" spellcheck="false" placeholder="/absolute/path/to/library.so" />
+        <button class="remove-library" type="button" aria-label="Remove library">×</button>
+      </div>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
