@@ -29,7 +29,7 @@ using riru with an older magisk version rather than zygisk.
 - Zygisk available and enabled
 
 ### Quick start
-- Download the latest release from the [Release Page](https://github.com/lico-n/ZygiskFrida/releases)\
+- Download the latest release from the [Release Page](https://github.com/winhok/ZygiskFrida/releases)\
   If you are using riru instead of zygisk choose the riru-release. Otherwise choose the normal version.
 - Transfer the ZygiskFrida zip file to your device and install it via Magisk.
 - Reboot after install
